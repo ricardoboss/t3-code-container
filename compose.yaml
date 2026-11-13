@@ -1,0 +1,131 @@
+name: t3-homelab
+
+services:
+  t3:
+    hostname: ${T3_HOSTNAME:-t3-homelab}
+    build:
+      context: .
+      target: ${T3_IMAGE_TARGET:-providers}
+      args:
+        NODE_VERSION:
+        NPM_VERSION:
+        T3_VERSION:
+        N_VERSION:
+        UV_VERSION:
+        GH_VERSION:
+        DOTNET_CHANNEL:
+        DOTNET_VERSION:
+        DOCKER_VERSION:
+        CODEX_VERSION:
+        CLAUDE_VERSION:
+        OPENCODE_VERSION:
+    init: true
+    user: "1000:1000"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+    stop_grace_period: 60s
+    pids_limit: ${T3_PIDS_LIMIT:-4096}
+    cpus: ${T3_CPUS:-4}
+    mem_limit: ${T3_MEMORY:-8g}
+    memswap_limit: ${T3_MEMORY:-8g}
+    environment:
+      DOCKER_HOST: tcp://docker:2376
+      DOCKER_TLS_VERIFY: "1"
+      DOCKER_CERT_PATH: /certs/client
+      T3CODE_HOST: "127.0.0.1"
+      T3CODE_PORT: "3773"
+      T3CODE_LOG_LEVEL: ${T3_LOG_LEVEL:-Info}
+      T3CODE_TELEMETRY_ENABLED: "false"
+      # Use the container boundary; Docker blocks Chrome's nested sandbox.
+      T3CODE_SERVER_BROWSER_SANDBOX: "0"
+      GH_HOST: github.com
+      DISCORD_WEBHOOK_URL: ${DISCORD_WEBHOOK_URL}
+    volumes:
+      - type: bind
+        source: ${T3_WORKSPACE_DIR:?Set T3_WORKSPACE_DIR to an existing absolute host directory}
+        target: /workspace
+        bind:
+          create_host_path: false
+      - type: volume
+        source: agent-home
+        target: /home/node
+      - type: volume
+        source: docker-client-certs
+        target: /certs/client
+        read_only: true
+    tmpfs:
+      - /tmp:rw,exec,nosuid,nodev,size=1024m,mode=1777
+    # No published ports, host networking, Docker socket, or host credentials.
+    depends_on:
+      docker:
+        condition: service_healthy
+    networks: [egress, docker-api]
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "const http=require('node:http');const r=http.get('http://127.0.0.1:3773/',s=>{s.resume();process.exit(s.statusCode===200?0:1)});r.setTimeout(4000,()=>{r.destroy();process.exit(1)});r.on('error',()=>process.exit(1));"
+      interval: 30s
+      timeout: 5s
+      start_period: 60s
+      retries: 3
+    logging:
+      driver: local
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  docker:
+    image: docker:${DOCKER_VERSION:-29}-dind
+    privileged: true
+    restart: unless-stopped
+    stop_grace_period: 60s
+    cpus: ${T3_DOCKER_CPUS:-4}
+    mem_limit: ${T3_DOCKER_MEMORY:-8g}
+    memswap_limit: ${T3_DOCKER_MEMORY:-8g}
+    environment:
+      DOCKER_TLS_CERTDIR: /certs
+    volumes:
+      - type: bind
+        source: ${T3_WORKSPACE_DIR:?Set T3_WORKSPACE_DIR to an existing absolute host directory}
+        target: /workspace
+        bind:
+          create_host_path: false
+      - type: volume
+        source: docker-data
+        target: /var/lib/docker
+      - type: volume
+        source: docker-certs
+        target: /certs
+      - type: volume
+        source: docker-client-certs
+        target: /certs/client
+    networks: [egress, docker-api]
+    healthcheck:
+      test: [CMD, docker, info]
+      interval: 5s
+      timeout: 5s
+      start_period: 30s
+      retries: 12
+    logging:
+      driver: local
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  agent-home:
+  docker-data:
+  docker-certs:
+  docker-client-certs:
+
+networks:
+  # Connect, provider APIs, and dependency downloads require outbound access.
+  egress:
+    driver: bridge
+  docker-api:
+    internal: true

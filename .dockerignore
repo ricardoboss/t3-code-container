@@ -1,0 +1,5 @@
+*
+!Dockerfile
+!install-forge-cli.sh
+!setup-tools.sh
+!t3-entrypoint.sh
