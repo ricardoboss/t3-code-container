@@ -2,6 +2,7 @@ name: t3-homelab
 
 services:
   t3:
+    image: ${T3_IMAGE:-ghcr.io/ricardoboss/t3-code-container:v1}
     hostname: ${T3_HOSTNAME:-t3-homelab}
     build:
       context: .

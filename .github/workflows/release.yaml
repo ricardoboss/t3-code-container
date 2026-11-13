@@ -1,0 +1,118 @@
+name: Release
+
+on:
+  push:
+    tags: ['v[0-9]*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: container-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    permissions:
+      contents: write
+      packages: write
+    env:
+      TEST_IMAGE: t3-release:test
+      VERSION: ${{ github.ref_name }}
+    steps:
+      - name: Check out release
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+
+      - name: Prepare image tags and release notes
+        id: release
+        shell: bash
+        run: |
+          if [[ ! "$VERSION" =~ ^v[0-9]+(\.[0-9]+){0,2}$ ]]; then
+            echo 'Use a stable version tag such as v1 or v1.2.3.' >&2
+            exit 1
+          fi
+          image="ghcr.io/${GITHUB_REPOSITORY,,}"
+          {
+            echo "image=$image"
+            echo 'tags<<EOF'
+            echo "$image:$VERSION"
+            echo "$image:latest"
+            if [[ "$VERSION" == *.* ]]; then echo "$image:${VERSION%%.*}"; fi
+            echo EOF
+          } >> "$GITHUB_OUTPUT"
+          awk -v heading="## [$VERSION]" '
+            index($0, heading) == 1 { found=1; next }
+            found && /^## / { exit }
+            found { print }
+          ' CHANGELOG.md > "$RUNNER_TEMP/release-notes.md"
+          if ! grep -q '[^[:space:]]' "$RUNNER_TEMP/release-notes.md"; then
+            echo "Add a CHANGELOG.md entry for $VERSION before tagging." >&2
+            exit 1
+          fi
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+
+      - name: Build candidate
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: .
+          platforms: linux/amd64
+          load: true
+          tags: ${{ env.TEST_IMAGE }}
+
+      - name: Provision SDKs and harnesses
+        run: |
+          docker run --rm --read-only --cap-drop ALL \
+            --security-opt no-new-privileges:true \
+            --mount type=volume,src=release-home,dst=/home/node \
+            --mount type=volume,src=release-tools,dst=/opt/tools \
+            --mount type=volume,src=release-scratch,dst=/tmp \
+            "$TEST_IMAGE" --version
+
+      - name: Test without network access
+        run: |
+          docker run --rm --init --network none --read-only --cap-drop ALL \
+            --security-opt no-new-privileges:true --memory 6g --cpus 2 \
+            --pids-limit 4096 --shm-size 512m --ulimit nofile=65536:65536 \
+            --mount type=volume,src=release-home,dst=/home/node \
+            --mount type=volume,src=release-tools,dst=/opt/tools \
+            --mount type=volume,src=release-scratch,dst=/tmp \
+            --mount type=bind,src="$GITHUB_WORKSPACE",dst=/repo,readonly \
+            --entrypoint bash "$TEST_IMAGE" -c \
+            'node --test /repo/tests/*.test.cjs && bash /repo/tests/smoke.sh'
+
+      - name: Log in to GHCR
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish image
+        id: image
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: .
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.release.outputs.tags }}
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.version=${{ github.ref_name }}
+
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          IMAGE: ${{ steps.release.outputs.image }}
+          DIGEST: ${{ steps.image.outputs.digest }}
+        run: |
+          printf '\nContainer image: %s:%s\n\nDigest: %s\n' \
+            "$IMAGE" "$VERSION" "$DIGEST" >> "$RUNNER_TEMP/release-notes.md"
+          gh release create "$VERSION" --verify-tag --title "$VERSION" \
+            --notes-file "$RUNNER_TEMP/release-notes.md"
