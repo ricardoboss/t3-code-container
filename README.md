@@ -1,13 +1,14 @@
 # T3 Code on your server
 
-Requires a Linux amd64 server with Docker Engine, Docker Compose v2, and Git.
+Requires a Linux amd64 server with Docker Engine, Docker Compose v2, and curl.
 
 1. Download the configuration and prepare the workspace:
 
    ```sh
-   git clone https://github.com/ricardoboss/t3-code-container.git
+   mkdir -p t3-code-container
    cd t3-code-container
-   cp .env.example .env
+   curl -fsSLO https://raw.githubusercontent.com/ricardoboss/t3-code-container/v1/compose.yaml
+   curl -fsSL https://raw.githubusercontent.com/ricardoboss/t3-code-container/v1/.env.example -o .env
    printf '\nT3_HOSTNAME=%s\n' "$(hostname)" >> .env
    sudo install -d -m 0750 -o 1000 -g 1000 \
      /srv/t3-workspace /srv/t3-workspace/repos /srv/t3-workspace/worktrees
@@ -33,6 +34,7 @@ Requires a Linux amd64 server with Docker Engine, Docker Compose v2, and Git.
 To enable Docker containers for agents:
 
 ```sh
+curl -fsSLO https://raw.githubusercontent.com/ricardoboss/t3-code-container/v1/compose.docker.yaml
 docker compose -f compose.yaml -f compose.docker.yaml up -d
 ```
 
