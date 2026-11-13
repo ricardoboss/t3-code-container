@@ -1,20 +1,17 @@
-# Headless T3 Code with T3 Connect
+# Headless T3 Code container
 
-Requires Docker Engine and Docker Compose v2 on a Linux host (amd64 or arm64).
-Copy this directory onto the host. No source checkout, desktop, or systemd inside
-the container is needed. The Dockerfile has `runtime` and `providers` targets;
-the default seeds Codex, Claude, and OpenCode CLIs into a writable user installation.
-Both targets use Debian 13 (Trixie) and include GitHub CLI (`gh`), the .NET 11 SDK, ICU, Make/GCC/G++,
-CMake/Ninja, GDB, Python 3 with venv/build support, and common CLI tools (`jq`,
-`rsync`, `wget`, `patch`, `file`, `less`, SQLite). Native development headers
-include ICU, OpenSSL, libffi, SQLite, and zlib. Override `DOTNET_VERSION` to select
-the SDK version at build time; .NET global tools installed with
-`dotnet tool install --global` persist in the home volume and are on PATH.
-Docker CLI, Buildx, and Compose are included for the stack's dedicated daemon.
+A Linux **amd64** development environment with T3 Connect, server-side previews,
+Codex, Claude Code, OpenCode, and common development tools. No desktop, display
+server, or systemd is needed. This image currently targets amd64.
 
-## Install
+The image contains OS dependencies, T3, its preview browser, and small CLI tools.
+First startup installs pinned .NET, Flutter/Dart, and agent harnesses into a
+persistent tools volume and verifies them **before T3 starts**. It needs internet
+access and can take several minutes. Later starts reuse the completed installation.
 
-Run these commands from this directory on Ubuntu:
+## Start
+
+On a Linux Docker host with Compose v2:
 
 ```sh
 cp .env.example .env
@@ -24,305 +21,196 @@ sudo install -d -m 0750 -o 1000 -g 1000 \
 docker compose config --quiet
 docker compose build
 docker compose run --rm t3 connect link --headless
-```
-
-Open the printed authorization URL on another device, verify the code, and
-approve it. Accept the managed relay-client download if prompted. `connect link`
-records authorization without offering a systemd installation. Do this before
-starting the server so the onboarding process and server do not write state
-concurrently.
-
-Set up the tools you want before starting T3:
-
-```sh
 docker compose run --rm --entrypoint setup-tools t3
+docker compose up -d
 ```
 
+Complete the printed authorization links on another device. Link Connect before
+starting the service. Provider authentication is only needed for providers you
+use; normal startup is unattended afterwards. Select the linked environment in
+T3 and enable the providers in Settings. No container port is published.
+
+Projects belong in `/workspace/repos`; T3 worktrees use `/workspace/worktrees`.
+
 ```sh
-docker compose up -d
-docker compose ps
+docker compose exec t3 gh repo clone OWNER/REPO /workspace/repos/REPO
+docker compose exec t3 check-tools
+docker compose exec t3 check-tools --auth
+docker compose exec t3 t3 connect status
 docker compose logs --tail=100 t3
 ```
 
-Sign into the same T3 Connect account on web, desktop, or mobile and select this
-environment. No router forwarding or published container port is needed. Add
-projects beneath `/workspace/repos`; automatic worktrees resolve beneath
-`/workspace/worktrees`. Clone through the container, for example:
+`check-tools` lists executable paths and fails for missing tools. `--auth` also
+runs native provider/GitHub status commands without installing or signing in.
+An HTTP health check confirms the local server, not end-to-end Connect access.
+
+## Included tools
+
+| Area | Included |
+| --- | --- |
+| Agents | T3, Codex, Claude Code, OpenCode |
+| JavaScript | Node.js, npm, n, Corepack, pnpm, Yarn |
+| Python | Python 3, pip, venv, pipx, uv/uvx, Ruff; native extension headers |
+| .NET | .NET SDK; global user tools on PATH |
+| Flutter | Flutter and bundled Dart SDK; pre-cached web and test artifacts |
+| Native builds | GCC/G++, Make, CMake, Ninja, pkg-config; OpenSSL, ICU, SQLite, libffi and zlib headers |
+| Git/hosting | Git, Git LFS, OpenSSH client, GitHub CLI, GitLab CLI |
+| Files/data | ripgrep, fd, tree, jq, yq, SQLite, rsync, file, patch, less |
+| Archives | zip/unzip, xz, zstd, 7zip |
+| Shell checks | ShellCheck, shfmt |
+| Diagnostics | procps, psmisc, iproute2, DNS utilities, netcat, lsof |
+| Network | curl, wget, CA certificates |
+| Containers | Docker CLI, Buildx, Compose; optional dedicated daemon |
+| Preview | T3's matching headless Chrome, runtime libraries, Liberation/Noto/emoji fonts |
+
+`yq` is Debian's jq-based YAML processor. Project-local formatters, test frameworks,
+and language servers remain project dependencies. Corepack includes the pinned
+pnpm/Yarn defaults; projects can request other versions through `packageManager`.
+Dependency restores can still need network access.
+
+**No Android SDK/NDK, JDK, emulator, or other optional language SDKs are included.**
+Flutter can analyze/test Dart and build web apps. Android builds need additional
+tooling; iOS builds require macOS. Linux desktop build dependencies are not included.
+
+## Installation and persistence
+
+| Location | Purpose |
+| --- | --- |
+| `/workspace` | Dedicated host bind for repositories and worktrees |
+| `/home/node` | Persistent T3 state, credentials, user overrides, and dependency caches |
+| `/opt/agent-tools` | Image-owned package managers and utility tools |
+| `/opt/tools` | Persistent, versioned SDKs and agent harnesses |
+| `/opt/dotnet`, `/opt/flutter` | Links to the selected SDKs in the tools volume |
+| `/opt/toolchain` | Release pins, resolved tool manifest, Debian package inventory |
+| `/tmp` | Disk-backed scratch volume; survives recreation |
+
+SDKs and harnesses are installed as UID 1000 into a release directory keyed by the
+version pins and installer scripts. A completion marker is written only after
+installation and checks succeed; the active tools link switches afterwards.
+Failed setup stops startup and is retried on the next run. Provisioning is
+serialized across commands sharing the tools volume. Changed pins or installers
+create a new release; an existing tools volume cannot hide an image update.
+
+The entrypoint also seeds the writable T3 runtime/browser cache and imports the
+package-manager cache. Flutter writes its cache directly in the tools volume,
+avoiding an image copy plus a second writable cache. This favors smaller image
+downloads over initial startup speed; installed tools still occupy disk space.
+
+User installations in `$HOME/.local/bin` take precedence over image tools, followed
+by .NET global tools, bundled CLIs, Flutter, and .NET. They are deliberate overrides:
+an existing provider installed there continues to shadow the image after a rebuild.
+Use `check-tools` to see the selected executable; remove an unwanted override with
+its package manager to return to the bundled version. Never delete credentials to
+refresh a tool. Existing homes and user-selected T3 runtimes are preserved.
+
+Provider/GitHub authentication and updates are available through `setup-tools`.
+Updates install user overrides rather than modifying the image. GitLab uses its
+native `glab auth login` flow. User Node versions can be installed with `n`; Python
+runtimes and tools with `uv`; .NET global tools with `dotnet tool install --global`.
+Change pinned SDK/harness versions by editing `versions.env`, rebuilding, and
+recreating the container. Do not run `flutter upgrade` inside a versioned SDK.
+
+For an existing deployment, back up the stopped home volume and workspace before
+upgrading. The default Compose project/home-volume name is retained. The old
+Docker daemon is now opt-in: use the override below to retain container workloads.
+Do not run `down --volumes` during migration.
+
+## Optional Docker daemon
 
 ```sh
-docker compose exec t3 sh
-# In this shell:
-git clone YOUR_REPOSITORY_URL /workspace/repos/my-project
-exit
+docker compose -f compose.yaml -f compose.docker.yaml up -d
 ```
 
-Enable your provider in Settings > Providers for this environment. To configure
-more tools or reauthenticate later, reopen the same menu:
+Use the same two `-f` options for subsequent Compose operations. The override adds
+a dedicated privileged Docker-in-Docker daemon, TLS client certificates, and a
+private API network. The host Docker socket is never mounted. Its workspace mount
+has the same `/workspace` path, so nested bind mounts must use workspace paths.
+Nested published ports are reachable from T3 at `docker:PORT`, not `localhost`.
+
+This daemon is for trusted agents on a dedicated host/VM; agents control containers
+it launches, including privileged containers. It has separate resource limits.
+When returning to the base stack, stop the daemon using the override first, or use
+`--remove-orphans`; otherwise the existing daemon can keep running.
+
+## Limits and storage
+
+`.env` controls CPU, memory, PID limits, shared memory, and parallel build jobs.
+Defaults are 4 CPUs, 8 GiB, 4096 PIDs, 512 MiB `/dev/shm`, and two Make/CMake jobs
+per build. These are configurable ceilings, not a tested agent-capacity promise.
+Shared memory counts toward the memory limit when used. Different build tools
+may have their own worker settings.
+
+`init: true` reaps orphan processes; shutdown has a 60-second grace period.
+The container runs as UID/GID 1000 with a read-only image, no capabilities, and
+`no-new-privileges`. Chrome's nested sandbox is disabled; the container is its
+boundary. T3, browsers, and agents share the home, credentials, and workspace.
+Separate untrusted projects into separate stacks. Outbound networking is enabled.
+
+Docker logs rotate. Dependency caches and scratch storage are shared across
+worktrees within this stack; disk usage still needs monitoring. Use native cache
+maintenance (`uv cache prune`, `npm cache clean --force`) when appropriate. Stop
+T3 before removing inactive releases under `/opt/tools/releases` or clearing
+scratch files. Keep the release selected by `/opt/tools/current`. With the Docker override, prune build storage through that
+daemon when needed. No automatic job deletes active builds or worktrees.
+
+Back up the home and workspace with T3 stopped. `docker compose down` preserves
+volumes; `down --volumes` deletes state, credentials, installed SDKs/harnesses,
+caches, and scratch data.
+With the Docker override it also deletes nested Docker storage and certificates.
+
+## Versions and updates
+
+Release versions/checksums live in `versions.env`. Node and Docker base images use
+exact tags and digests in the Dockerfile/Compose override. The browser version/hash
+is checked against the selected T3 source revision before download. Release archives
+are checksum-verified; Flutter source is pinned to a verified Git commit and only
+web/test artifacts are pre-cached. Debian packages receive current repository
+security updates at build time; their resolved versions are recorded, so rebuilds
+are not guaranteed bit-for-bit identical.
+
+After provisioning, inspect `/opt/toolchain/tool-versions.txt` and
+`/opt/toolchain/debian-packages.tsv` inside the container.
+To update, review the release pins together, rebuild, run the checks below, and
+recreate the service. Keep the T3 version, source revision, and browser pins aligned.
 
 ```sh
-docker compose exec t3 setup-tools
-```
-
-Provider executables
-are `/home/node/.local/bin/codex`, `/home/node/.local/bin/claude`, and
-`/home/node/.local/bin/opencode`. Only
-authenticate the providers you use. Agents can install and update development
-tools under `/home/node/.local` without root; that directory takes precedence on
-PATH in terminals and provider processes. Do not mount host tool directories.
-
-## Interactive tool setup
-
-Choose one or more numbered tools, or `a` for all. Then choose an action:
-
-- **Set up / reauthenticate:** install missing or broken tools at the image's configured
-  versions, then run their native login prompts, including for existing accounts.
-- **Authentication status:** inspect saved authentication without installing tools.
-- **Install / update version:** enter a version or accept the default (`latest`
-  for npm providers; the image's pinned version for GitHub CLI).
-- **Log out:** use the CLI's own logout flow; OpenCode lets you select a provider.
-
-Codex offers ChatGPT device login or a hidden API-key prompt. Claude offers
-subscription or Console/API billing login. OpenCode opens its provider selection
-and authentication flow. GitHub uses `github.com` and HTTPS Git credentials.
-Complete browser authorization on another device using the printed URL/code.
-Codex device login may need enabling in your ChatGPT security/workspace settings;
-see [Codex authentication](https://developers.openai.com/codex/auth/).
-The menu stays open after each action; `q` or Ctrl+C exits. Failed actions report
-the affected tool and let you retry. Existing home volumes are supported without
-resetting tools or credentials.
-
-Restart affected provider sessions after an update or account change. Use native
-CLI commands for additional provider configuration. To support another tool,
-extend the registry and authentication/status/logout cases in `setup-tools.sh`.
-
-## GitHub authentication
-
-GitHub prints a browser URL and one-time code; complete the login on another
-device. The setup stores credentials in the persistent home volume and enables
-GitHub's HTTPS Git credential helper.
-Agents can then clone without password prompts:
-
-```sh
-docker compose exec t3 gh repo clone OWNER/REPOSITORY /workspace/repos/REPOSITORY
-```
-
-`gh auth status` inspects saved login status. The container has no
-OS keyring, so saved tokens are files in the home volume and accessible to agents.
-Installation cannot authenticate your accounts without the login/token step.
-SSH keys are optional when using these Git credential helpers.
-
-## Install and update tools as an agent
-
-Run these commands in the container terminal or through an agent. They require
-no sudo and persist across container recreation:
-
-```sh
-# Provider CLIs and other npm tools use the writable user prefix.
-npm config set allow-scripts=@openai/codex,@anthropic-ai/claude-code,@opencode/cli --location=user
-npm install -g @openai/codex@latest @anthropic-ai/claude-code@latest
-npm install -g @opencode/cli@latest
-npm install -g n@latest
-
-# GitHub CLI: use the latest release; downloads verify SHA256 sums.
-install-forge-cli gh latest
-
-# Install/update the active development Node.js version.
-n latest
-hash -r
-npm install -g npm@latest
-node --version
-npm --version
-
-# Python runtimes, project environments, and Python command-line tools.
-uv self update
-uv python install --default 3.15
-uv venv /workspace/repos/my-project/.venv --python 3.15
-uv tool install ruff
-uv tool upgrade --all
-
-# Install Flutter once. Its bin directory is already on PATH.
-git clone --branch stable https://github.com/flutter/flutter.git \
-  "$HOME/.local/share/flutter"
-flutter --version
-# Subsequent Flutter/Dart SDK updates:
-flutter upgrade
-```
-
-Use `uv python upgrade 3.15` to update a managed Python minor release; existing
-virtual environments may need recreation. Install any supported Python version
-instead of 3.15 as needed. The `n` manager installs Node/npm under the same
-writable prefix; T3's packaged executable has its own runtime. Restart affected
-provider sessions after updating their tools.
-
-`NODE_VERSION` selects the bootstrap Node image (currently Node 26 LTS),
-and `NPM_VERSION` seeds npm in the writable user prefix. Run `n lts` in an
-existing container to install the latest LTS release. Installing
-Node with `n` also installs its bundled npm; run `npm install -g npm@latest`
-afterwards to use the latest npm. A tool installed in an existing home volume
-takes precedence over the image's bootstrap tools.
-
-npm 12 blocks dependency install scripts by default. The image's environment
-allows scripts for the three included provider packages, including with existing
-home volumes, so their native binaries install correctly. If an earlier Claude
-installation reports a missing native binary, use `setup-tools` to set up Claude
-again, or run `npm rebuild -g --allow-scripts=@anthropic-ai/claude-code @anthropic-ai/claude-code`.
-Other global tools may require their own `--allow-scripts` approval;
-project dependencies use the project's npm script policy.
-
-The image includes a C/C++ build toolchain and Flutter's basic Linux SDK
-prerequisites. Flutter Android builds also need an Android SDK/JDK, which can be
-installed under the user home; Linux desktop builds need additional system
-libraries baked into the image. Host devices and emulators are not passed
-through. System packages and T3 itself still require an image rebuild: agents
-cannot use root-level `apt install`.
-
-## Agent containers
-
-The `docker` service runs a separate Docker-in-Docker daemon. Agents can use
-`docker build`, `docker run`, and `docker compose` directly; the client connects
-to `docker:2376` with TLS client certificates. No daemon port is published to the
-host, and the host Docker socket is not mounted. Images, nested containers, and
-their named volumes persist in `docker-data`.
-
-The daemon mounts the same dedicated workspace at `/workspace`, so bind mounts
-must use paths beneath that directory. Home-volume and `/tmp` paths are not
-shared with the daemon; use a Docker named volume or a workspace path instead.
-Nested containers run as the user selected by their image; use `--user 1000:1000`
-when they write workspace files to preserve agent access. Published nested
-container ports are reachable from T3 at `docker:PORT`, not `localhost:PORT`,
-and are not automatically published on the host.
-
-Docker-in-Docker requires a privileged daemon container. Agents have full control
-of that daemon, including launching privileged nested containers. This stack is
-for trusted agents on a dedicated host or VM; the daemon is not a security
-sandbox. A filtering proxy is omitted because normal builds, Compose, and bind
-mounts need broad Docker API access. TLS authenticates access to the dedicated
-daemon without exposing the host daemon.
-
-Set `DOCKER_VERSION` to update both client and daemon. `T3_DOCKER_CPUS` and
-`T3_DOCKER_MEMORY` bound the daemon and its nested workloads separately from T3.
-
-## Filesystem boundary
-
-| Location         | Access                          | Contents                                                                                                  |
-| ---------------- | ------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| `/workspace`     | Read/write host bind            | Only the dedicated repositories and worktrees directory                                                   |
-| `/home/node`     | Read/write Docker volume        | T3 database, Connect identity, provider credentials/configuration, installed tools/SDKs, caches, and logs |
-| `/tmp`           | Temporary, size-limited | Scratch files; lost when the container is recreated                                                       |
-| Image filesystem | Read-only                       | T3 bootstrap, Node, Git, build tools, operating-system files                                              |
-
-The named home volume is initialized from the image on first use, including the
-worktree symlink. Existing volumes retain their configuration across rebuilds.
-T3's application logs live at `/home/node/.t3/userdata/logs`; Docker output logs
-are rotated separately. Back up the workspace and home volume with the container
-stopped for a consistent database backup. `docker compose down` preserves the
-volumes; `down --volumes` also deletes credentials, history, installed user tools,
-Docker images, nested container volumes, and daemon certificates.
-
-The T3 process runs as UID/GID 1000 with all Linux capabilities dropped,
-`no-new-privileges`, Docker's default seccomp profile, private container namespaces,
-and CPU/memory/process limits. Keep Ubuntu's default Docker AppArmor profile
-enabled for T3. There is no host Docker socket, SSH-agent socket, host network/PID
-namespace, or host home mount. The separate Docker daemon is privileged as
-described above; T3's restrictions do not constrain containers agents launch
-through that daemon.
-
-This limits host filesystem access, not reads of the container's operating-system
-files. T3 and agents share a UID: agents can read/change credentials, history,
-and runtime state in the home volume, and every repository in the workspace.
-Do not put unrelated secrets there. Separate untrusted projects into separate
-stacks with separate workspace paths, home volumes, and Compose project names.
-Container isolation is not a VM boundary.
-
-Outbound networking remains available for T3 Connect, provider APIs, Git, and
-package downloads. It is not an egress allowlist and does not block connections
-to other homelab services. Enforce those restrictions at the host firewall or
-run the stack in a dedicated VM/network segment if required. Provider sandboxes
-may require kernel features unavailable under these restrictions; use the
-container as the boundary if necessary rather than enabling privileged mode or
-disabling Docker's security profiles.
-
-## Built-in browser
-
-The image includes Chrome's runtime libraries. Compose sets
-`T3CODE_SERVER_BROWSER_SANDBOX=0` so T3's built-in browser uses Docker's isolation
-instead of Chrome's nested sandbox. Docker's AppArmor/seccomp policies,
-non-root user, dropped capabilities, and read-only image remain in place.
-Browser processes have the same access to the workspace, credentials, and home
-volume as T3 and its agents; Chrome's additional process isolation is disabled.
-
-Rebuild the image and recreate the T3 container to apply this configuration:
-
-```sh
-docker compose build t3
-docker compose up -d t3
-```
-
-Do not run `sudo t3 browser setup` inside this container. That command configures
-a regular Linux host and may still suggest AppArmor setup even with the sandbox
-opt-out. T3 downloads its browser on first use into the persistent home volume.
-
-## Configuration and updates
-
-Edit `.env` for the workspace path, hostname, image target, pinned versions, CPU/memory
-limits, or log level. The fixed UID/GID is 1000; provision the dedicated host
-directory for that user. Never mount `/`, your general home, or live T3 data.
-
-`T3_HOSTNAME` sets the container hostname that T3 uses as its default environment
-label. Setup captures the Ubuntu host's hostname; Docker does not automatically
-inherit it. Without this setting, the label defaults to `t3-homelab`. After
-changing the host name, update `T3_HOSTNAME` and recreate the container with
-`docker compose up -d --force-recreate`. This does not share the host's UTS
-namespace or change the Connect tunnel address.
-
-T3 runs through its service launcher, with versioned runtimes in the writable
-home volume. Update it through the client's server-runtime update action; the
-launcher restarts the server without restarting the container and retains the
-selected version across container recreation. Docker manages the launcher, so
-`t3 service install/restart` (which require systemd) are not used here. The `t3`
-command inside the container always resolves the service's active version.
-
-The image seeds T3 only when service state is absent, including when migrating
-an existing home volume from the previous `serve` setup. Rebuilding does not
-overwrite a runtime selected by an update.
-
-Build defaults follow the latest T3 and user-tool releases, Node 26, Docker 29,
-and the .NET 11.0 SDK channel. Optional version overrides in `.env` pin specific
-releases; remove old pins from an existing `.env` to use the moving defaults.
-To refresh system tools and the image's bootstrap defaults, bypass Docker's
-cached download layers:
-
-```sh
-docker compose build --pull --no-cache
+docker compose build --pull
 docker compose up -d
 ```
 
-Use the client's server-runtime update action for the running T3 service;
-`t3 update` alone does not switch this Docker-managed service.
-Provider CLIs, user-installed SDKs, `n`, and `uv` can be updated in the home volume
-by agents. The bundled .NET SDK is updated by rebuilding; `DOTNET_CHANNEL`
-selects its release channel and `DOTNET_VERSION` can pin an exact SDK.
-User-tool version pins seed new volumes only; rebuilding does not
-overwrite tools in an existing volume. The home also holds T3's downloaded
-managed relay/provider helpers.
+T3's server-runtime update action remains supported and persists across container
+recreation. A newer T3 runtime may require a newer browser and download it on first
+use. The no-download preview guarantee covers the bundled T3/browser pair. T3
+Connect can also download its managed relay during initial authorization.
 
-Useful commands:
+## Verification
 
 ```sh
-docker compose exec t3 t3 connect status
-docker compose restart t3
-docker compose stop t3
+# First provision disposable verification volumes with network access.
+docker run --rm --read-only \
+  --mount type=volume,src=t3-verification-home,dst=/home/node \
+  --mount type=volume,src=t3-verification-tools,dst=/opt/tools \
+  --mount type=volume,src=t3-verification-scratch,dst=/tmp \
+  t3-homelab-t3 --version
+
+# Reuse those tools without network access. Tests need no account credentials.
+docker run --rm --network none --read-only --cap-drop ALL \
+  --security-opt no-new-privileges:true \
+  --mount type=volume,src=t3-verification-home,dst=/home/node \
+  --mount type=volume,src=t3-verification-tools,dst=/opt/tools \
+  --mount type=volume,src=t3-verification-scratch,dst=/tmp \
+  --mount type=bind,src="$PWD",dst=/repo,readonly \
+  --entrypoint bash t3-homelab-t3 -c \
+  'node --test /repo/tests/*.test.cjs && bash /repo/tests/smoke.sh'
 ```
 
-Health reports the local HTTP listener, not end-to-end Connect reachability.
-Check the client and container logs for tunnel failures. To relink, stop the
-server, repeat `docker compose run --rm t3 connect link --headless`, then start
-it again. Never share authorization codes or credential-bearing log output.
+The smoke check runs native/Python/.NET tooling, headless browser rendering, provider
+version checks, and a Flutter test/web build without network access. Account-backed
+agent turns and Connect reachability require authenticated integration testing.
+The test suite also runs 32 concurrent Node/Python workers and concurrent T3
+initialization. This synthetic load does not establish capacity for live agent sessions.
 
-References: [T3 Connect](https://github.com/pingdotgg/t3code/blob/main/docs/user/remote-access.md),
-[Docker Compose service configuration](https://docs.docker.com/reference/compose-file/services/),
-[user-space Node installs](https://github.com/tj/n#optional-environment-variables),
-[Python management](https://docs.astral.sh/uv/guides/install-python/),
+References: [T3 remote access](https://github.com/pingdotgg/t3code/blob/main/docs/user/remote-access.md),
+[Compose services](https://docs.docker.com/reference/compose-file/services/),
+[Corepack](https://github.com/nodejs/corepack),
 [Flutter installation](https://docs.flutter.dev/install/manual).
-
-GitHub authentication: [GitHub CLI](https://cli.github.com/manual/gh_auth_login).

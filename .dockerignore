@@ -3,3 +3,8 @@
 !install-forge-cli.sh
 !setup-tools.sh
 !t3-entrypoint.sh
+!versions.env
+!install-image-tools.sh
+!check-tools.sh
+!install-flutter.sh
+!provision-tools.sh

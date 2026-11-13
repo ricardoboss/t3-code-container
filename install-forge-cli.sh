@@ -1,14 +1,14 @@
 #!/bin/sh
 set -eu
 
-tool=${1:?Usage: install-forge-cli gh VERSION}
+tool=${1:?Usage: install-forge-cli gh|glab VERSION}
 version=${2:?Supply a release version without the v prefix}
 if [ "$tool" = gh ] && [ "$version" = latest ]; then
   version=$(curl -fsSL https://api.github.com/repos/cli/cli/releases/latest | jq -er '.tag_name | ltrimstr("v")')
 fi
 case "$version" in ''|*[!0-9.]*) echo 'Expected a numeric release version' >&2; exit 1 ;; esac
 case "$(uname -m)" in x86_64) arch=amd64 ;; aarch64) arch=arm64 ;; *) exit 1 ;; esac
-destination="$HOME/.local/bin"
+destination=${INSTALL_BIN_DIR:-"$HOME/.local/bin"}
 staging=$(mktemp -d)
 trap 'rm -rf "$staging"' EXIT
 cd "$staging"
@@ -21,14 +21,23 @@ case "$tool" in
     curl -fsSL "$release/$asset" -o "$asset"
     curl -fsSL "$release/gh_${version}_checksums.txt" -o checksums.txt
     ;;
-  *) echo 'Supported tool: gh' >&2; exit 1 ;;
+  glab)
+    asset="glab_${version}_linux_${arch}.tar.gz"
+    release="https://gitlab.com/gitlab-org/cli/-/releases/v${version}/downloads"
+    curl -fsSL "$release/$asset" -o "$asset"
+    curl -fsSL "$release/checksums.txt" -o checksums.txt
+    ;;
+  *) echo 'Supported tools: gh, glab' >&2; exit 1 ;;
 esac
 
 awk -v asset="$asset" '{ name=$2; sub(/^\*/, "", name); if (name==asset) print }' checksums.txt > selected.sha256
 test -s selected.sha256
 sha256sum -c selected.sha256
 tar -xzf "$asset"
-executable="gh_${version}_linux_${arch}/bin/gh"
+case "$tool" in
+  gh) executable="gh_${version}_linux_${arch}/bin/gh" ;;
+  glab) executable=bin/glab ;;
+esac
 # Replace atomically so updating a running CLI does not truncate its executable.
 install -m 0755 "$executable" "$destination/.$tool.new"
 mv -f "$destination/.$tool.new" "$destination/$tool"

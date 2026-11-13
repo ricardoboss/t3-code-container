@@ -1,0 +1,63 @@
+# Enable with: docker compose -f compose.yaml -f compose.docker.yaml up -d
+services:
+  t3:
+    environment:
+      DOCKER_HOST: tcp://docker:2376
+      DOCKER_TLS_VERIFY: "1"
+      DOCKER_CERT_PATH: /certs/client
+    volumes:
+      - type: volume
+        source: docker-client-certs
+        target: /certs/client
+        read_only: true
+    networks: [docker-api]
+    depends_on:
+      docker:
+        condition: service_healthy
+
+  docker:
+    image: ${DOCKER_DAEMON_IMAGE:-docker:29.9.3-dind@sha256:7bf70dcb85c822e3fa6f2d332143e474b99147b9d7b39102b0cfe8b04a7dd61b}
+    privileged: true
+    restart: unless-stopped
+    stop_grace_period: 60s
+    cpus: ${T3_DOCKER_CPUS:-4}
+    mem_limit: ${T3_DOCKER_MEMORY:-8g}
+    memswap_limit: ${T3_DOCKER_MEMORY:-8g}
+    environment:
+      DOCKER_TLS_CERTDIR: /certs
+    volumes:
+      - type: bind
+        source: ${T3_WORKSPACE_DIR:?Set T3_WORKSPACE_DIR to an existing absolute host directory}
+        target: /workspace
+        bind:
+          create_host_path: false
+      - type: volume
+        source: docker-data
+        target: /var/lib/docker
+      - type: volume
+        source: docker-certs
+        target: /certs
+      - type: volume
+        source: docker-client-certs
+        target: /certs/client
+    networks: [egress, docker-api]
+    healthcheck:
+      test: [CMD, docker, info]
+      interval: 5s
+      timeout: 5s
+      start_period: 30s
+      retries: 12
+    logging:
+      driver: local
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  docker-data:
+  docker-certs:
+  docker-client-certs:
+
+networks:
+  docker-api:
+    internal: true

@@ -1,1 +1,5 @@
 .env
+build.log
+verification.log
+runtime-check.log
+smoke.log

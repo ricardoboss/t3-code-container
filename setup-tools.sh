@@ -4,6 +4,19 @@ umask 077
 export PATH="$HOME/.local/bin:$PATH"
 export NPM_CONFIG_PREFIX="$HOME/.local"
 
+if [[ -f /opt/toolchain/versions.env ]]; then
+  while IFS='=' read -r name value; do
+    case "$name" in
+      GH_VERSION|CODEX_VERSION|CLAUDE_VERSION|OPENCODE_VERSION)
+        if [[ -z ${!name:-} ]]; then printf -v "$name" '%s' "$value"; fi
+        ;;
+    esac
+  done < /opt/toolchain/versions.env
+fi
+if [[ -x /usr/local/bin/provision-tools ]]; then
+  PATH=/opt/agent-tools/bin:/usr/local/bin:/usr/bin:/bin /usr/local/bin/provision-tools >&2
+fi
+
 # Add tools here and their native authentication commands in authenticate().
 tools=(gh codex claude opencode)
 labels=('GitHub CLI' 'Codex' 'Claude Code' 'OpenCode')
