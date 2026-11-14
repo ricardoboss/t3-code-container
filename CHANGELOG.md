@@ -1,5 +1,11 @@
 # Changelog
 
+## [v1.0.1] - 2026-11-14
+
+- Remove Discord webhook forwarding and the hardcoded GitHub host.
+- Keep optional deployment settings as commented examples and document base-image overrides as maintenance settings.
+- Reuse image defaults for telemetry and the preview browser sandbox instead of repeating them in Compose.
+
 ## [v1] - 2026-11-13
 
 - Headless T3 Code deployment with T3 Connect and a bundled preview browser.

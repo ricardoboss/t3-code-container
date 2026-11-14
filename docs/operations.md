@@ -124,6 +124,12 @@ web/test artifacts are pre-cached. Debian packages receive current repository
 security updates at build time; their resolved versions are recorded, so rebuilds
 are not guaranteed bit-for-bit identical.
 
+Base-image overrides are maintenance settings, not required deployment configuration.
+For local builds, Compose accepts `NODE_IMAGE` and `DOCKER_CLI_IMAGE` as build arguments.
+The optional Docker stack accepts `DOCKER_DAEMON_IMAGE` for its daemon image.
+Use exact tags and `@sha256:` digests, and validate the resulting image/stack before
+deployment. Normal installations use the published image and checked-in daemon pin.
+
 After provisioning, inspect `/opt/toolchain/tool-versions.txt` and
 `/opt/toolchain/debian-packages.tsv` inside the container.
 To update, review the release pins together, rebuild, run the checks below, and

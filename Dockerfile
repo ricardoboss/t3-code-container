@@ -47,7 +47,6 @@ ENV HOME=/home/node \
     DOTNET_CLI_TELEMETRY_OPTOUT=1 \
     FLUTTER_ROOT=/opt/flutter \
     PUB_CACHE=/home/node/.cache/pub \
-    GH_HOST=github.com \
     PATH="/home/node/.local/bin:/home/node/.dotnet/tools:/opt/tools/current/harnesses/bin:/opt/agent-tools/bin:/opt/flutter/bin:/opt/dotnet:${PATH}"
 
 COPY --chmod=0755 t3-entrypoint.sh /usr/local/bin/t3
