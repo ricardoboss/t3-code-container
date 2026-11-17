@@ -10,6 +10,9 @@ test("seeds an existing home without changing user data, then follows the update
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "t3-entrypoint-"));
   t.after(() => fs.rmSync(home, { recursive: true, force: true }));
   fs.writeFileSync(path.join(home, "user-data"), "keep me");
+  const settingsPath = path.join(home, "userdata/settings.json");
+  fs.mkdirSync(path.dirname(settingsPath));
+  fs.writeFileSync(settingsPath, JSON.stringify({ backgroundActivityProfile: "performance" }));
   const run = (...args) => {
     const result = spawnSync("/usr/local/bin/t3", args, {
       env: { ...process.env, T3CODE_HOME: home },
@@ -22,6 +25,10 @@ test("seeds an existing home without changing user data, then follows the update
 
   const initial = fs.readFileSync("/opt/t3/version", "utf8").trim();
   assert.ok(run("--version").endsWith(`v${initial}`));
+  assert.deepEqual(JSON.parse(fs.readFileSync(settingsPath)), {
+    backgroundActivityProfile: "performance",
+    keepAwakeWhileAgentsWork: false,
+  });
   assert.equal(fs.readFileSync(path.join(home, "user-data"), "utf8"), "keep me");
   const statePath = path.join(home, "runtime/service-state.json");
   assert.deepEqual(JSON.parse(fs.readFileSync(statePath)), { protocol: 3, activeVersion: initial });
@@ -41,9 +48,30 @@ test("seeds an existing home without changing user data, then follows the update
   );
   const state = JSON.stringify({ protocol: 3, activeVersion: updated });
   fs.writeFileSync(statePath, state);
+  const settings = {
+    keepAwakeWhileAgentsWork: true,
+    sourceControlHosts: { "github.com": { enabled: true } },
+    backgroundActivity: { schemaVersion: 1, profile: "performance", overrides: {} },
+  };
+  fs.writeFileSync(settingsPath, JSON.stringify(settings));
   assert.deepEqual(JSON.parse(run()), ["__service-launcher"]);
+  assert.deepEqual(JSON.parse(fs.readFileSync(settingsPath)), {
+    ...settings,
+    keepAwakeWhileAgentsWork: false,
+  });
+  const settingsAfterStartup = fs.readFileSync(settingsPath, "utf8");
   assert.deepEqual(JSON.parse(run("connect", "status")), ["connect", "status"]);
+  assert.equal(fs.readFileSync(settingsPath, "utf8"), settingsAfterStartup);
   assert.equal(fs.readFileSync(statePath, "utf8"), state);
+
+  fs.writeFileSync(settingsPath, "{invalid json");
+  const invalid = spawnSync("/usr/local/bin/t3", [], {
+    env: { ...process.env, T3CODE_HOME: home },
+    encoding: "utf8",
+    timeout: 30000,
+  });
+  assert.ok(Number.isInteger(invalid.status) && invalid.status !== 0, invalid.stderr);
+  assert.equal(fs.readFileSync(settingsPath, "utf8"), "{invalid json");
 });
 
 test("concurrent first use leaves one complete runtime and browser", async (t) => {
@@ -65,4 +93,7 @@ test("concurrent first use leaves one complete runtime and browser", async (t) =
   const initial = fs.readFileSync("/opt/t3/version", "utf8").trim();
   assert.deepEqual(fs.readdirSync(path.join(home, "runtime/versions")), [initial]);
   assert.equal(JSON.parse(fs.readFileSync(path.join(home, "runtime/service-state.json"))).activeVersion, initial);
+  assert.deepEqual(JSON.parse(fs.readFileSync(path.join(home, "userdata/settings.json"))), {
+    keepAwakeWhileAgentsWork: false,
+  });
 });

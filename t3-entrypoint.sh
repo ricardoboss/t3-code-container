@@ -45,6 +45,22 @@ if [ ! -f "$state" ]; then
     jq -n --arg version "$version" '{protocol: 3, activeVersion: $version}' > "$runtime/.service-state.tmp"
     mv "$runtime/.service-state.tmp" "$state"
 fi
+
+# Containers cannot inhibit host sleep. Disable T3's desktop keep-awake feature,
+# including for existing homes and runtimes selected through T3's updater.
+settings="$T3CODE_HOME/userdata/settings.json"
+mkdir -p "$(dirname "$settings")"
+if [ ! -f "$settings" ] || ! jq -e '.keepAwakeWhileAgentsWork == false' "$settings" > /dev/null; then
+    staging=$(mktemp "$(dirname "$settings")/.settings-XXXXXX")
+    trap 'rm -f "$staging"' EXIT
+    if [ -f "$settings" ]; then
+        jq '.keepAwakeWhileAgentsWork = false' "$settings" > "$staging"
+    else
+        printf '%s\n' '{"keepAwakeWhileAgentsWork":false}' > "$staging"
+    fi
+    mv "$staging" "$settings"
+    trap - EXIT
+fi
 flock -u 9
 exec 9>&-
 

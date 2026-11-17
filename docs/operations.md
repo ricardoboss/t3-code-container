@@ -59,6 +59,12 @@ Use `check-tools` to see the selected executable; remove an unwanted override wi
 its package manager to return to the bundled version. Never delete credentials to
 refresh a tool. Existing homes and user-selected T3 runtimes are preserved.
 
+On each startup, the entrypoint disables `keepAwakeWhileAgentsWork` in T3's
+`userdata/settings.json`, preserving other settings. T3 0.1.10 introduced this
+desktop feature, which invokes `systemd-inhibit` on Linux. Containers cannot
+inhibit host sleep and have no systemd/logind service; host power management
+belongs on the server. This also applies to runtimes installed through T3's updater.
+
 Provider/GitHub authentication and updates are available through `setup-tools`.
 Updates install user overrides rather than modifying the image. GitLab uses its
 native `glab auth login` flow. User Node versions can be installed with `n`; Python

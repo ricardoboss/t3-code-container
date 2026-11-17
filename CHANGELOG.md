@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Disable T3's host sleep inhibitor in containers, including existing homes and updated runtimes, while preserving other settings.
+
 ## [v1.0.1] - 2026-11-14
 
 - Remove Discord webhook forwarding and the hardcoded GitHub host.
