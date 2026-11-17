@@ -1,8 +1,9 @@
 # Changelog
 
-## Unreleased
+## [v1.0.2] - 2026-11-17
 
 - Disable T3's host sleep inhibitor in containers, including existing homes and updated runtimes, while preserving other settings.
+- Update T3 to 0.1.10 with its matching preview browser, pnpm, Yarn, uv, Claude Code, Docker, and pinned release workflow actions to their latest stable releases; use the Ubuntu 26.04 release runner.
 
 ## [v1.0.1] - 2026-11-14
 
