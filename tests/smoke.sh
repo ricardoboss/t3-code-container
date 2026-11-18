@@ -15,6 +15,9 @@ dart --version
 scratch=$(mktemp -d)
 trap 'rm -rf "$scratch"' EXIT
 cd "$scratch"
+mkdir npm-project
+printf '{"name":"npm-project","version":"1.0.0"}\n' > npm-project/package.json
+npm install --offline --prefix npm-project
 printf '#include <stdio.h>\nint main(void) { puts("native-ok"); }\n' > main.c
 cc main.c -o main
 test "$(./main)" = native-ok

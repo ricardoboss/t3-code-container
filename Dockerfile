@@ -40,7 +40,6 @@ ENV HOME=/home/node \
     T3CODE_TELEMETRY_ENABLED=false \
     T3CODE_SERVER_BROWSER_SANDBOX=0 \
     NPM_CONFIG_PREFIX=/home/node/.local \
-    NPM_CONFIG_ALLOW_SCRIPTS=@openai/codex,@anthropic-ai/claude-code,@opencode/cli \
     N_PREFIX=/home/node/.local \
     COREPACK_HOME=/home/node/.cache/corepack \
     DOTNET_ROOT=/opt/dotnet \

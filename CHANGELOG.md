@@ -1,5 +1,9 @@
 # Changelog
 
+## [v1.0.3] - 2026-11-18
+
+- Fix project-scoped `npm install` failing with `EALLOWSCRIPTS` by removing the image-wide `NPM_CONFIG_ALLOW_SCRIPTS`; harness installs already approve their scripts explicitly.
+
 ## [v1.0.2] - 2026-11-17
 
 - Disable T3's host sleep inhibitor in containers, including existing homes and updated runtimes, while preserving other settings.
