@@ -60,6 +60,7 @@ RUN ln -s /usr/local/bin/install-forge-cli.sh /usr/local/bin/install-forge-cli \
     && ln -s /workspace/worktrees /home/node/.t3/worktrees \
     && git config --system --add safe.directory /opt/flutter \
     && git lfs install --system \
+    && printf "export PATH='%s'\n" "$PATH" > /etc/profile.d/toolchain-path.sh \
     && chown -R node:node /workspace /home/node /opt/tools
 
 USER node

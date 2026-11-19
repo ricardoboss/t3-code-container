@@ -1,5 +1,9 @@
 # Changelog
 
+## [Unreleased]
+
+- Keep the toolchain `PATH` in login shells, so `t3` and provisioned tools work in agent commands run through `bash -lc`.
+
 ## [v1.0.3] - 2026-11-18
 
 - Fix project-scoped `npm install` failing with `EALLOWSCRIPTS` by removing the image-wide `NPM_CONFIG_ALLOW_SCRIPTS`; harness installs already approve their scripts explicitly.

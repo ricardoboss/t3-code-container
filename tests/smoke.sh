@@ -3,6 +3,7 @@ set -euo pipefail
 
 t3 --version
 check-tools
+bash -lc check-tools
 for tool in codex claude opencode gh glab uv ruff npm pnpm yarn; do
   "$tool" --version
 done
