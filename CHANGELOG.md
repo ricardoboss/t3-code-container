@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [v1.0.4] - 2026-11-19
 
 - Keep the toolchain `PATH` in login shells, so `t3` and provisioned tools work in agent commands run through `bash -lc`.
 
