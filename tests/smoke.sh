@@ -34,6 +34,17 @@ browser="$T3CODE_HOME/tools/chrome-headless-shell/linux64/$browser_version/chrom
 "$browser" --no-sandbox --disable-gpu --dump-dom 'data:text/html,<title>preview-ok</title>' | grep -F preview-ok
 "$browser" --no-sandbox --disable-gpu --screenshot="$scratch/preview.png" 'data:text/html,<h1>preview-ok</h1>'
 test -s "$scratch/preview.png"
+python3 -c '
+import ctypes
+for lib in (
+    "libasound.so.2", "libatk-1.0.so.0", "libatk-bridge-2.0.so.0", "libatspi.so.0",
+    "libcairo.so.2", "libcups.so.2", "libdbus-1.so.3", "libdrm.so.2", "libgbm.so.1",
+    "libglib-2.0.so.0", "libnspr4.so", "libnss3.so", "libpango-1.0.so.0",
+    "libX11.so.6", "libxcb.so.1", "libXcomposite.so.1", "libXdamage.so.1",
+    "libXext.so.6", "libXfixes.so.3", "libxkbcommon.so.0", "libXrandr.so.2",
+):
+    ctypes.CDLL(lib)
+'
 
 flutter create --offline --platforms=web --project-name smoke_app app
 cd app

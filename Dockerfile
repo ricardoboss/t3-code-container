@@ -13,9 +13,10 @@ RUN apt-get update \
       build-essential ca-certificates cmake curl file git git-lfs jq less \
       libatomic1 libffi-dev libglu1-mesa libgssapi-krb5-2 libicu-dev \
       libsqlite3-dev libssl-dev ninja-build openssh-client patch pkg-config \
-      libnss3 libglib2.0-0t64 libatk1.0-0t64 libatk-bridge2.0-0t64 libatspi2.0-0t64 \
-      libdbus-1-3 libx11-6 libxcb1 libxcomposite1 libxdamage1 libxext6 \
-      libxfixes3 libxrandr2 libxkbcommon0 libgbm1 libasound2t64 libexpat1 \
+      libnspr4 libnss3 libglib2.0-0t64 libatk1.0-0t64 libatk-bridge2.0-0t64 libatspi2.0-0t64 \
+      libcups2t64 libcairo2 libpango-1.0-0 libdbus-1-3 libdrm2 libx11-6 libxcb1 \
+      libxcomposite1 libxdamage1 libxext6 libxfixes3 libxrandr2 libxkbcommon0 \
+      libgbm1 libasound2t64 libexpat1 \
       python3 python3-dev python3-venv python3-pip pipx ripgrep rsync sqlite3 \
       unzip wget xz-utils zip zstd 7zip zlib1g-dev \
       fd-find tree shellcheck shfmt procps psmisc iproute2 dnsutils \

@@ -1,5 +1,9 @@
 # Changelog
 
+## [v1.0.5] - 2026-11-21
+
+- Include the remaining Debian runtime libraries required by full Chromium builds (`libcups2t64`, `libcairo2`, `libpango-1.0-0`, plus explicit `libdrm2` and `libnspr4`) and smoke-test loading all Chromium shared libraries.
+
 ## [v1.0.4] - 2026-11-19
 
 - Keep the toolchain `PATH` in login shells, so `t3` and provisioned tools work in agent commands run through `bash -lc`.
