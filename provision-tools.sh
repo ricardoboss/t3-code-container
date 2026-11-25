@@ -21,6 +21,13 @@ if [[ ! -f "$release/.ready" ]]; then
     --install-dir "$release/python" --default "$PYTHON_VERSION"
   "$release/python/bin/python3" -c 'import ssl, sqlite3, ctypes, bz2, lzma, zlib, venv'
   bash /opt/toolchain/dotnet-install.sh --version "$DOTNET_VERSION" --install-dir "$release/dotnet" --no-path
+  mkdir -p "$release/powershell"
+  curl -fsSL "https://github.com/PowerShell/PowerShell/releases/download/v$POWERSHELL_VERSION/powershell-$POWERSHELL_VERSION-linux-x64.tar.gz" \
+    -o "$release/powershell.tar.gz"
+  printf '%s  %s\n' "$POWERSHELL_SHA256" "$release/powershell.tar.gz" | sha256sum -c -
+  tar -xzf "$release/powershell.tar.gz" -C "$release/powershell"
+  rm "$release/powershell.tar.gz"
+  chmod +x "$release/powershell/pwsh"
   /opt/agent-tools/bin/npm install --global --prefix "$release/harnesses" \
     --allow-scripts=@openai/codex,@anthropic-ai/claude-code,@opencode/cli \
     "@openai/codex@$CODEX_VERSION" "@anthropic-ai/claude-code@$CLAUDE_VERSION" "@opencode/cli@$OPENCODE_VERSION"
@@ -29,6 +36,7 @@ if [[ ! -f "$release/.ready" ]]; then
     cat /opt/toolchain/versions.env
     "$release/python/bin/python3" --version
     "$release/dotnet/dotnet" --list-sdks
+    "$release/powershell/pwsh" --version
     "$release/harnesses/bin/codex" --version
     "$release/harnesses/bin/claude" --version
     "$release/harnesses/bin/opencode" --version

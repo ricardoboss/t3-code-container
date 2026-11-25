@@ -48,7 +48,7 @@ ENV HOME=/home/node \
     DOTNET_CLI_TELEMETRY_OPTOUT=1 \
     FLUTTER_ROOT=/opt/flutter \
     PUB_CACHE=/home/node/.cache/pub \
-    PATH="/home/node/.local/bin:/home/node/.dotnet/tools:/opt/tools/current/python/bin:/opt/tools/current/harnesses/bin:/opt/agent-tools/bin:/opt/flutter/bin:/opt/dotnet:${PATH}"
+    PATH="/home/node/.local/bin:/home/node/.dotnet/tools:/opt/tools/current/python/bin:/opt/tools/current/powershell:/opt/tools/current/harnesses/bin:/opt/agent-tools/bin:/opt/flutter/bin:/opt/dotnet:${PATH}"
 
 COPY --chmod=0755 t3-entrypoint.sh /usr/local/bin/t3
 COPY --chmod=0755 setup-tools.sh /usr/local/bin/setup-tools

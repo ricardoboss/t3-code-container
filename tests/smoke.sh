@@ -4,6 +4,16 @@ set -euo pipefail
 t3 --version
 check-tools
 bash -lc check-tools
+# Both login shells must inherit the provisioned toolchain without a user profile.
+# shellcheck disable=SC2016 # PowerShell variables must reach pwsh literally.
+pwsh -Login -NoLogo -NoProfile -NonInteractive -Command '& check-tools; exit $LASTEXITCODE'
+# shellcheck source=../versions.env
+source /opt/toolchain/versions.env
+# shellcheck disable=SC2016
+test "$(pwsh -NoLogo -NoProfile -NonInteractive -Command '$PSVersionTable.PSVersion.ToString()')" = "$POWERSHELL_VERSION"
+# shellcheck disable=SC2016
+test "$(pwsh -NoLogo -NoProfile -NonInteractive -Command '[pscustomobject]@{edition=$PSVersionTable.PSEdition;value=(1..3 | Measure-Object -Sum).Sum} | ConvertTo-Json -Compress')" = '{"edition":"Core","value":6.0}'
+test "$(getent passwd node | cut -d: -f7)" = /bin/bash
 for tool in codex claude opencode gh glab uv ruff npm pnpm yarn; do
   "$tool" --version
 done

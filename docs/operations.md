@@ -14,6 +14,7 @@
 | Files/data | ripgrep, fd, tree, jq, yq, SQLite, rsync, file, patch, less |
 | Archives | zip/unzip, xz, zstd, 7zip |
 | Shell checks | ShellCheck, shfmt |
+| Shells | Bash (login shell), PowerShell Core (`pwsh`) |
 | Diagnostics | procps, psmisc, iproute2, DNS utilities, netcat, lsof |
 | Network | curl, wget, CA certificates |
 | Containers | Docker CLI, Buildx, Compose; optional dedicated daemon |
@@ -53,7 +54,7 @@ avoiding an image copy plus a second writable cache. This favors smaller image
 downloads over initial startup speed; installed tools still occupy disk space.
 
 User installations in `$HOME/.local/bin` take precedence over image tools, followed
-by .NET global tools, provisioned Python, bundled CLIs, Flutter, and .NET. They are deliberate overrides:
+by .NET global tools, provisioned Python and PowerShell, bundled CLIs, Flutter, and .NET. They are deliberate overrides:
 an existing provider installed there continues to shadow the image after a rebuild.
 Use `check-tools` to see the selected executable; remove an unwanted override with
 its package manager to return to the bundled version. Never delete credentials to
@@ -86,6 +87,9 @@ access or changes to the read-only image.
 
 Change pinned SDK/harness versions by editing `versions.env`, rebuilding, and
 recreating the container. Do not run `flutter upgrade` inside a versioned SDK.
+
+PowerShell Core is pinned and checksum-verified in the tools volume. Run `pwsh`
+to use it; Bash remains the login shell. Both shells inherit the toolchain PATH.
 
 For an existing deployment, back up the stopped home volume and workspace before
 upgrading. The default Compose project/home-volume name is retained. The old
