@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [v1.0.6] - 2026-11-25
+
 - Provide pinned PowerShell Core (`pwsh`) alongside the existing Bash login shell.
 - Include curl and Expat development headers, gettext, and Rust/Cargo so users can build Git into their persistent home without root access.
 - Provision pinned Python in the tools volume and support persistent user-selected `python3` versions through uv.
