@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
-ARG NODE_IMAGE=node:26.13.1-trixie-slim@sha256:e6bedef217677b276c591795e169840edd9096dbf13f29df8ef8d1856b8820bc
-ARG DOCKER_CLI_IMAGE=docker:29.10.0-cli@sha256:34507eb5069d8be82c95dd3b6987d4250fd5fee49b82e2509b7d7a7030740d6d
+ARG NODE_IMAGE=node:26.13.1-trixie-slim@sha256:abe7e5a82b61a8ef67b315b85497c9e65173387ccf2f4a029248184b8e020be5
+ARG DOCKER_CLI_IMAGE=docker:29.10.1-cli@sha256:6e26c5a09acc481245d6b50836f1f713c609e51ebc88735c08f5aa4b3c91e15a
 FROM ${DOCKER_CLI_IMAGE} AS docker-cli
 FROM ${NODE_IMAGE} AS runtime
 
@@ -10,7 +10,8 @@ RUN test "$TARGETARCH" = amd64
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
-      build-essential ca-certificates cmake curl file git git-lfs jq less \
+      build-essential ca-certificates cargo cmake curl file gettext git git-lfs jq less rustc \
+      libcurl4-openssl-dev libexpat1-dev \
       libatomic1 libffi-dev libglu1-mesa libgssapi-krb5-2 libicu-dev \
       libsqlite3-dev libssl-dev ninja-build openssh-client patch pkg-config \
       libnspr4 libnss3 libglib2.0-0t64 libatk1.0-0t64 libatk-bridge2.0-0t64 libatspi2.0-0t64 \
@@ -47,7 +48,7 @@ ENV HOME=/home/node \
     DOTNET_CLI_TELEMETRY_OPTOUT=1 \
     FLUTTER_ROOT=/opt/flutter \
     PUB_CACHE=/home/node/.cache/pub \
-    PATH="/home/node/.local/bin:/home/node/.dotnet/tools:/opt/tools/current/harnesses/bin:/opt/agent-tools/bin:/opt/flutter/bin:/opt/dotnet:${PATH}"
+    PATH="/home/node/.local/bin:/home/node/.dotnet/tools:/opt/tools/current/python/bin:/opt/tools/current/harnesses/bin:/opt/agent-tools/bin:/opt/flutter/bin:/opt/dotnet:${PATH}"
 
 COPY --chmod=0755 t3-entrypoint.sh /usr/local/bin/t3
 COPY --chmod=0755 setup-tools.sh /usr/local/bin/setup-tools

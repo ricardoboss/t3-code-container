@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+- Include curl and Expat development headers, gettext, and Rust/Cargo so users can build Git into their persistent home without root access.
+- Provision pinned Python in the tools volume and support persistent user-selected `python3` versions through uv.
+- Refresh stable tool releases, the T3/browser pair, Flutter, and Node/Docker image digests.
+
 ## [v1.0.5] - 2026-11-21
 
 - Include the remaining Debian runtime libraries required by full Chromium builds (`libcups2t64`, `libcairo2`, `libpango-1.0-0`, plus explicit `libdrm2` and `libnspr4`) and smoke-test loading all Chromium shared libraries.

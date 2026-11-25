@@ -9,7 +9,7 @@
 | Python | Python 3, pip, venv, pipx, uv/uvx, Ruff; native extension headers |
 | .NET | .NET SDK; global user tools on PATH |
 | Flutter | Flutter and bundled Dart SDK; pre-cached web and test artifacts |
-| Native builds | GCC/G++, Make, CMake, Ninja, pkg-config; OpenSSL, ICU, SQLite, libffi and zlib headers |
+| Native builds | GCC/G++, Rust/Cargo, Make, CMake, Ninja, pkg-config, gettext; curl, Expat, OpenSSL, ICU, SQLite, libffi and zlib headers |
 | Git/hosting | Git, Git LFS, OpenSSH client, GitHub CLI, GitLab CLI |
 | Files/data | ripgrep, fd, tree, jq, yq, SQLite, rsync, file, patch, less |
 | Archives | zip/unzip, xz, zstd, 7zip |
@@ -53,7 +53,7 @@ avoiding an image copy plus a second writable cache. This favors smaller image
 downloads over initial startup speed; installed tools still occupy disk space.
 
 User installations in `$HOME/.local/bin` take precedence over image tools, followed
-by .NET global tools, bundled CLIs, Flutter, and .NET. They are deliberate overrides:
+by .NET global tools, provisioned Python, bundled CLIs, Flutter, and .NET. They are deliberate overrides:
 an existing provider installed there continues to shadow the image after a rebuild.
 Use `check-tools` to see the selected executable; remove an unwanted override with
 its package manager to return to the bundled version. Never delete credentials to
@@ -67,8 +67,23 @@ belongs on the server. This also applies to runtimes installed through T3's upda
 
 Provider/GitHub authentication and updates are available through `setup-tools`.
 Updates install user overrides rather than modifying the image. GitLab uses its
-native `glab auth login` flow. User Node versions can be installed with `n`; Python
-runtimes and tools with `uv`; .NET global tools with `dotnet tool install --global`.
+native `glab auth login` flow. User Node versions can be installed with `n`;
+.NET global tools with `dotnet tool install --global`.
+
+Python is pinned and provisioned in the tools volume. To select a newer default
+`python`/`python3`, run `uv python install --default VERSION` (for example,
+`uv python install --default 3.15`). User Python installations and executable links
+live in the persistent home and take precedence after restart or image updates.
+Use `uv python upgrade` for patch updates to these user installations and
+`python3 -m pip` or `uv pip` to target the selected interpreter; the Debian `pip`
+command belongs to the system Python. The system Python remains for OS tools.
+
+Git source-build dependencies, including Cargo for Git 2.56's default Rust code,
+are included. Build a newer upstream release with
+`make prefix="$HOME/.local" all` and `make prefix="$HOME/.local" install` in its
+extracted source directory. This installs a persistent user override without root
+access or changes to the read-only image.
+
 Change pinned SDK/harness versions by editing `versions.env`, rebuilding, and
 recreating the container. Do not run `flutter upgrade` inside a versioned SDK.
 

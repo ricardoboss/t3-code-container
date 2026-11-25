@@ -15,7 +15,7 @@ fi
 failed=0
 for tool in t3 codex claude opencode node npm n pnpm yarn corepack python3 pip pipx uv uvx \
   ruff dotnet flutter dart docker gh glab git git-lfs rg fd jq yq tree curl wget \
-  cmake ninja gcc g++ make pkg-config shellcheck shfmt ps pstree ip dig nc lsof \
+  cmake ninja gcc g++ rustc cargo make pkg-config shellcheck shfmt ps pstree ip dig nc lsof \
   sqlite3 rsync zip unzip xz zstd 7z flock; do
   if location=$(command -v "$tool"); then
     printf '%-14s %s\n' "$tool" "$location"

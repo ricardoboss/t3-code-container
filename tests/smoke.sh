@@ -22,6 +22,22 @@ npm install --offline --prefix npm-project
 printf '#include <stdio.h>\nint main(void) { puts("native-ok"); }\n' > main.c
 cc main.c -o main
 test "$(./main)" = native-ok
+cat > git-dependencies.c <<'EOF'
+#include <curl/curl.h>
+#include <expat.h>
+#include <openssl/ssl.h>
+#include <zlib.h>
+int main(void) {
+  return !(curl_version() && XML_ExpatVersion() && OpenSSL_version(0) && zlibVersion());
+}
+EOF
+read -r -a git_flags <<< "$(pkg-config --cflags --libs libcurl expat openssl zlib)"
+cc git-dependencies.c -o git-dependencies "${git_flags[@]}"
+./git-dependencies
+msgfmt --version > /dev/null
+rustc --version
+cargo --version
+python3 -c 'import sys; assert sys.prefix.startswith("/opt/tools/"), sys.prefix'
 uv venv --offline .venv
 .venv/bin/python -c 'import ssl, sqlite3, ctypes; print("python-ok")'
 mkdir empty-feed

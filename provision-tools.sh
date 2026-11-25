@@ -17,6 +17,9 @@ if [[ ! -f "$release/.ready" ]]; then
   rm -rf "$release"
   mkdir -p "$release"
   trap 'printf "Tool provisioning failed; restart to retry. T3 has not started.\n" >&2' ERR
+  UV_PYTHON_BIN_DIR="$release/python/bin" /opt/agent-tools/bin/uv python install \
+    --install-dir "$release/python" --default "$PYTHON_VERSION"
+  "$release/python/bin/python3" -c 'import ssl, sqlite3, ctypes, bz2, lzma, zlib, venv'
   bash /opt/toolchain/dotnet-install.sh --version "$DOTNET_VERSION" --install-dir "$release/dotnet" --no-path
   /opt/agent-tools/bin/npm install --global --prefix "$release/harnesses" \
     --allow-scripts=@openai/codex,@anthropic-ai/claude-code,@opencode/cli \
@@ -24,6 +27,7 @@ if [[ ! -f "$release/.ready" ]]; then
   /usr/local/bin/install-flutter.sh "$release/flutter"
   {
     cat /opt/toolchain/versions.env
+    "$release/python/bin/python3" --version
     "$release/dotnet/dotnet" --list-sdks
     "$release/harnesses/bin/codex" --version
     "$release/harnesses/bin/claude" --version
