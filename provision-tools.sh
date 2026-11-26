@@ -28,9 +28,12 @@ if [[ ! -f "$release/.ready" ]]; then
   tar -xzf "$release/powershell.tar.gz" -C "$release/powershell"
   rm "$release/powershell.tar.gz"
   chmod +x "$release/powershell/pwsh"
-  /opt/agent-tools/bin/npm install --global --prefix "$release/harnesses" \
-    --allow-scripts=@openai/codex,@anthropic-ai/claude-code,@opencode/cli \
-    "@openai/codex@$CODEX_VERSION" "@anthropic-ai/claude-code@$CLAUDE_VERSION" "@opencode/cli@$OPENCODE_VERSION"
+  # Isolate GROK_HOME so @xai-official/grok postinstall does not write binaries or config into $HOME/.grok.
+  GROK_HOME="$release/.grok-postinstall" /opt/agent-tools/bin/npm install --global --prefix "$release/harnesses" \
+    --allow-scripts=@openai/codex,@anthropic-ai/claude-code,@opencode/cli,@xai-official/grok \
+    "@openai/codex@$CODEX_VERSION" "@anthropic-ai/claude-code@$CLAUDE_VERSION" \
+    "@opencode/cli@$OPENCODE_VERSION" "@xai-official/grok@$GROK_VERSION"
+  rm -rf "$release/.grok-postinstall"
   /usr/local/bin/install-flutter.sh "$release/flutter"
   {
     cat /opt/toolchain/versions.env
@@ -40,6 +43,7 @@ if [[ ! -f "$release/.ready" ]]; then
     "$release/harnesses/bin/codex" --version
     "$release/harnesses/bin/claude" --version
     "$release/harnesses/bin/opencode" --version
+    "$release/harnesses/bin/grok" --version
     "$release/flutter/bin/flutter" --version
   } > "$release/tool-versions.txt"
   touch "$release/.ready"

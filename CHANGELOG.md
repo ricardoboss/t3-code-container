@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- Provide pinned Grok CLI (`@xai-official/grok`) alongside Codex, Claude Code, and OpenCode, with headless device-auth setup and auth checks.
+
 ## [v1.0.6] - 2026-11-25
 
 - Provide pinned PowerShell Core (`pwsh`) alongside the existing Bash login shell.

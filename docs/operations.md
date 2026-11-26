@@ -4,7 +4,7 @@
 
 | Area | Included |
 | --- | --- |
-| Agents | T3, Codex, Claude Code, OpenCode |
+| Agents | T3, Codex, Claude Code, OpenCode, Grok |
 | JavaScript | Node.js, npm, n, Corepack, pnpm, Yarn |
 | Python | Python 3, pip, venv, pipx, uv/uvx, Ruff; native extension headers |
 | .NET | .NET SDK; global user tools on PATH |

@@ -14,7 +14,7 @@ test "$(pwsh -NoLogo -NoProfile -NonInteractive -Command '$PSVersionTable.PSVers
 # shellcheck disable=SC2016
 test "$(pwsh -NoLogo -NoProfile -NonInteractive -Command '[pscustomobject]@{edition=$PSVersionTable.PSEdition;value=(1..3 | Measure-Object -Sum).Sum} | ConvertTo-Json -Compress')" = '{"edition":"Core","value":6.0}'
 test "$(getent passwd node | cut -d: -f7)" = /bin/bash
-for tool in codex claude opencode gh glab uv ruff npm pnpm yarn; do
+for tool in codex claude opencode grok gh glab uv ruff npm pnpm yarn; do
   "$tool" --version
 done
 docker compose version

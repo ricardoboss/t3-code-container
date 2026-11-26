@@ -7,7 +7,7 @@ export NPM_CONFIG_PREFIX="$HOME/.local"
 if [[ -f /opt/toolchain/versions.env ]]; then
   while IFS='=' read -r name value; do
     case "$name" in
-      GH_VERSION|CODEX_VERSION|CLAUDE_VERSION|OPENCODE_VERSION)
+      GH_VERSION|CODEX_VERSION|CLAUDE_VERSION|OPENCODE_VERSION|GROK_VERSION)
         if [[ -z ${!name:-} ]]; then printf -v "$name" '%s' "$value"; fi
         ;;
     esac
@@ -18,10 +18,10 @@ if [[ -x /usr/local/bin/provision-tools ]]; then
 fi
 
 # Add tools here and their native authentication commands in authenticate().
-tools=(gh codex claude opencode)
-labels=('GitHub CLI' 'Codex' 'Claude Code' 'OpenCode')
-packages=('' '@openai/codex' '@anthropic-ai/claude-code' '@opencode/cli')
-versions=("${GH_VERSION:-}" "${CODEX_VERSION:-}" "${CLAUDE_VERSION:-}" "${OPENCODE_VERSION:-}")
+tools=(gh codex claude opencode grok)
+labels=('GitHub CLI' 'Codex' 'Claude Code' 'OpenCode' 'Grok')
+packages=('' '@openai/codex' '@anthropic-ai/claude-code' '@opencode/cli' '@xai-official/grok')
+versions=("${GH_VERSION:-}" "${CODEX_VERSION:-}" "${CLAUDE_VERSION:-}" "${OPENCODE_VERSION:-}" "${GROK_VERSION:-}")
 
 install_tool() {
   local index=$1 version=$2 tool=${tools[$1]}
@@ -31,6 +31,14 @@ install_tool() {
   fi
   if [[ "$tool" == gh ]]; then
     install-forge-cli gh "$version" || return
+  elif [[ "$tool" == grok ]]; then
+    local grok_home status=0
+    grok_home=$(mktemp -d)
+    # Approve only this provider's native binary installation scripts and avoid polluting ~/.grok.
+    GROK_HOME="$grok_home" npm install --global --allow-scripts="${packages[$index]}" \
+      "${packages[$index]}@$version" || status=$?
+    rm -rf "$grok_home"
+    if [[ "$status" -ne 0 ]]; then return "$status"; fi
   else
     # Approve only this provider's native binary installation scripts.
     npm install --global --allow-scripts="${packages[$index]}" \
@@ -72,6 +80,7 @@ authenticate() {
       esac
       ;;
     opencode) opencode auth login ;;
+    grok) grok login --device-auth ;;
   esac
 }
 
@@ -81,6 +90,7 @@ auth_status() {
     codex) codex login status ;;
     claude) claude auth status --text ;;
     opencode) opencode auth list ;;
+    grok) grok models ;;
   esac
 }
 
@@ -90,6 +100,7 @@ logout() {
     codex) codex logout ;;
     claude) claude auth logout ;;
     opencode) opencode auth logout ;;
+    grok) grok logout ;;
   esac
 }
 
@@ -121,6 +132,11 @@ configure_tool() {
   esac
 }
 
+all_selection=()
+for index in "${!tools[@]}"; do
+  all_selection+=("$((index + 1))")
+done
+
 echo 'T3 environment tool setup'
 echo 'Credentials and tools persist in the home volume and are accessible to agents.'
 echo 'Setup signs in again even if already authenticated. Ctrl+C exits.'
@@ -132,14 +148,14 @@ while true; do
     printf '  %s) %s (%s)\n' "$((index + 1))" "${labels[$index]}" "$state"
   done
   read -r -p '> ' selection || exit 0
-  case "$selection" in q|Q) exit 0 ;; a|A) selection='1 2 3 4' ;; esac
+  case "$selection" in q|Q) exit 0 ;; a|A) selection="${all_selection[*]}" ;; esac
   read -r -a selected <<< "$selection"
   if [[ ${#selected[@]} == 0 ]]; then continue; fi
   valid=true
   for number in "${selected[@]}"; do
-    if [[ ! "$number" =~ ^[1-4]$ ]]; then valid=false; fi
+    if [[ ! "$number" =~ ^[1-9][0-9]*$ ]] || (( number > ${#tools[@]} )); then valid=false; fi
   done
-  if [[ "$valid" == false ]]; then echo 'Select numbers 1–4, a, or q.'; continue; fi
+  if [[ "$valid" == false ]]; then echo "Select numbers 1–${#tools[@]}, a, or q."; continue; fi
   printf '\n1) Set up / reauthenticate  2) Authentication status\n3) Install / update version  4) Log out  0) Back\n'
   read -r -p 'Action [1]: ' action || exit 0
   action=${action:-1}

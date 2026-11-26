@@ -9,7 +9,7 @@
 - Include common development and diagnostic tools so agents need not install
   basic utilities or invent alternatives. Optimize for many concurrent processes.
 - Keep OS dependencies, T3, its matching preview browser, and bootstrap utilities
-  in the image. Provision pinned SDKs and Codex, Claude Code, and OpenCode into
+  in the image. Provision pinned SDKs and Codex, Claude Code, OpenCode, and Grok into
   the persistent tools volume before starting T3.
 - Include Flutter and its bundled Dart SDK with web/test artifacts. Exclude the
   Android SDK/NDK, JDK, emulators, and other optional SDK extensions unless requested.

@@ -45,6 +45,15 @@ case "$*" in
   *@openai/codex@*) tool=codex ;;
   *@anthropic-ai/claude-code@*) tool=claude ;;
   *@opencode/cli@*) tool=opencode ;;
+  *@xai-official/grok@*)
+    tool=grok
+    if [[ -z "\${GROK_HOME:-}" || "$GROK_HOME" == "$HOME"* ]]; then
+      echo "unisolated GROK_HOME=\${GROK_HOME:-}" >&2
+      exit 1
+    fi
+    mkdir -p "$GROK_HOME/bin"
+    touch "$GROK_HOME/config.toml"
+    ;;
   *) exit 1 ;;
 esac
 cp "$FIXTURE/cli" "$HOME/.local/bin/$tool"
@@ -65,12 +74,14 @@ chmod +x "$HOME/.local/bin/$tool"
         CODEX_VERSION: "0.160.0",
         CLAUDE_VERSION: "2.1.287",
         OPENCODE_VERSION: "2.1.4",
+        GROK_VERSION: "1.0.92",
         FAIL_TOOL: "",
         ...extra,
       },
     });
     assert.equal(result.status, 0, result.stderr);
     assert.equal(fs.readFileSync(path.join(home, "sentinel"), "utf8"), "existing data");
+    assert.equal(fs.existsSync(path.join(home, ".grok")), false);
     const log = path.join(home, "calls");
     return { ...result, calls: fs.existsSync(log) ? fs.readFileSync(log, "utf8") : "" };
   };
@@ -81,9 +92,11 @@ test("first setup installs selected tools and rerun reauthenticates without rein
   const first = run("a\n1\n1\n2\nq\n");
   assert.match(first.calls, /install gh 2\.102\.0/);
   assert.match(first.calls, /--allow-scripts=@openai\/codex @openai\/codex@0\.160\.0/);
+  assert.match(first.calls, /--allow-scripts=@xai-official\/grok @xai-official\/grok@1\.0\.92/);
   assert.match(first.calls, /claude auth login --console/);
   assert.match(first.calls, /codex login --device-auth/);
   assert.match(first.calls, /opencode auth login/);
+  assert.match(first.calls, /grok login --device-auth/);
   assert.match(first.calls, /gh auth setup-git --hostname github.com/);
   const second = run("1 2\n1\n1\nq\n");
   assert.equal(second.calls.split("install gh").length, 2);
@@ -98,14 +111,17 @@ test("setup repairs an installed provider whose executable fails", (t) => {
 });
 
 test("status, version updates, logout and invalid selection", (t) => {
-  const run = fixture(t, ["gh", "codex", "claude", "opencode"]);
-  const result = run("invalid\na\n2\n2\n3\n\n4\n4\nq\n");
-  assert.match(result.stdout, /Select numbers/);
+  const run = fixture(t, ["gh", "codex", "claude", "opencode", "grok"]);
+  const result = run("invalid\n6\na\n2\n2\n3\n\n5\n3\n\n4\n4\n5\n4\nq\n");
+  assert.match(result.stdout, /Select numbers 1–5/);
   assert.match(result.calls, /codex login status/);
   assert.match(result.calls, /claude auth status --text/);
   assert.match(result.calls, /opencode auth list/);
+  assert.match(result.calls, /grok models/);
   assert.match(result.calls, /@openai\/codex@latest/);
+  assert.match(result.calls, /@xai-official\/grok@latest/);
   assert.match(result.calls, /opencode auth logout/);
+  assert.match(result.calls, /grok logout/);
 });
 
 test("failed authentication allows remaining tools and retry; EOF exits", (t) => {
